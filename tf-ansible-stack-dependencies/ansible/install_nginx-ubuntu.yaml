@@ -1,32 +1,25 @@
 ---
 - name: Install and configure Nginx on Ubuntu, Debian, and RedHat
   hosts: all
-  become: yes
+  become: true
+  gather_facts: true
   vars:
-    nginx_index_content: |
+    index_page_content: |
       <html>
-        <head><title>Welcome</title></head>
-        <body><h1>Welcome to Nginx installed by Ansible!</h1></body>
+      <head><title>Welcome</title></head>
+      <body><h1>Welcome to Nginx!</h1></body>
       </html>
 
   tasks:
     - name: Gather OS details
-      ansible.builtin.setup:
+      set_fact:
+        os_family: "{{ ansible_os_family }}"
+        os_distribution: "{{ ansible_distribution | lower }}"
 
     - name: Set SSH user for Ubuntu
-      ansible.builtin.set_fact:
+      set_fact:
         ansible_user: ubuntu
       when: ansible_distribution == "Ubuntu"
-
-    - name: Set SSH user for Debian
-      ansible.builtin.set_fact:
-        ansible_user: admin
-      when: ansible_distribution == "Debian"
-
-    - name: Set SSH user for RedHat/CentOS
-      ansible.builtin.set_fact:
-        ansible_user: ec2-user
-      when: ansible_os_family == "RedHat"
 
     - name: Install Nginx on Ubuntu
       apt:
@@ -51,24 +44,19 @@
     - name: Create index.html for Nginx welcome page
       copy:
         dest: /var/www/html/index.html
-        content: "{{ nginx_index_content }}"
-        owner: www-data
-        group: www-data
-        mode: '0644'
+        content: "{{ index_page_content }}"
       when: ansible_distribution in ["Ubuntu", "Debian"]
 
     - name: Create index.html for RedHat-based systems
       copy:
         dest: /usr/share/nginx/html/index.html
-        content: "{{ nginx_index_content }}"
-        owner: nginx
-        group: nginx
-        mode: '0644'
+        content: "{{ index_page_content }}"
       when: ansible_os_family == "RedHat"
 
-    - name: Reload systemd daemon (Ubuntu/Debian)
+    - name: Reload systemd daemon if required
       command: systemctl daemon-reexec
-      when: ansible_distribution in ["Ubuntu", "Debian"]
+      when: ansible_os_family != "Windows"
+      changed_when: false
 
     - name: Ensure Nginx is running and enabled
       service:
