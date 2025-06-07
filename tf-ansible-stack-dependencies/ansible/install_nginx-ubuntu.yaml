@@ -1,57 +1,77 @@
+---
 - name: Install and configure Nginx on Ubuntu, Debian, and RedHat
   hosts: all
   become: yes
-  tasks:
+  vars:
+    nginx_index_content: |
+      <html>
+        <head><title>Welcome</title></head>
+        <body><h1>Welcome to Nginx installed by Ansible!</h1></body>
+      </html>
 
+  tasks:
     - name: Gather OS details
       ansible.builtin.setup:
 
     - name: Set SSH user for Ubuntu
-      set_fact:
+      ansible.builtin.set_fact:
         ansible_user: ubuntu
       when: ansible_distribution == "Ubuntu"
 
     - name: Set SSH user for Debian
-      set_fact:
+      ansible.builtin.set_fact:
         ansible_user: admin
       when: ansible_distribution == "Debian"
 
     - name: Set SSH user for RedHat/CentOS
-      set_fact:
+      ansible.builtin.set_fact:
         ansible_user: ec2-user
       when: ansible_os_family == "RedHat"
 
     - name: Install Nginx on Ubuntu
-      ansible.builtin.apt:
+      apt:
         name: nginx
         state: present
         update_cache: yes
       when: ansible_distribution == "Ubuntu"
 
     - name: Install Nginx on Debian
-      ansible.builtin.apt:
+      apt:
         name: nginx
         state: present
         update_cache: yes
       when: ansible_distribution == "Debian"
 
     - name: Install Nginx on RedHat/CentOS
-      ansible.builtin.yum:
+      yum:
         name: nginx
         state: present
       when: ansible_os_family == "RedHat"
 
     - name: Create index.html for Nginx welcome page
-      ansible.builtin.copy:
+      copy:
         dest: /var/www/html/index.html
-        content: "<h1>Hello from Ansible - Nginx is running!</h1>"
+        content: "{{ nginx_index_content }}"
+        owner: www-data
+        group: www-data
+        mode: '0644'
+      when: ansible_distribution in ["Ubuntu", "Debian"]
+
+    - name: Create index.html for RedHat-based systems
+      copy:
+        dest: /usr/share/nginx/html/index.html
+        content: "{{ nginx_index_content }}"
+        owner: nginx
+        group: nginx
+        mode: '0644'
+      when: ansible_os_family == "RedHat"
 
     - name: Reload systemd daemon (Ubuntu/Debian)
-      ansible.builtin.command: systemctl daemon-reexec
-      when: ansible_os_family == "Debian"
+      command: systemctl daemon-reexec
+      when: ansible_distribution in ["Ubuntu", "Debian"]
 
     - name: Ensure Nginx is running and enabled
-      ansible.builtin.systemd:
+      service:
         name: nginx
         state: started
         enabled: yes
