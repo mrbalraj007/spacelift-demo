@@ -1,48 +1,57 @@
----
-- name: Install and Configure Nginx
+- name: Install and configure Nginx on Ubuntu, Debian, and RedHat
   hosts: all
   become: yes
+  tasks:
 
-  pre_tasks:
-    - name: Set SSH user for Ubuntu systems
+    - name: Gather OS details
+      ansible.builtin.setup:
+
+    - name: Set SSH user for Ubuntu
       set_fact:
         ansible_user: ubuntu
       when: ansible_distribution == "Ubuntu"
 
-    - name: Set SSH user for RedHat systems
+    - name: Set SSH user for Debian
+      set_fact:
+        ansible_user: admin
+      when: ansible_distribution == "Debian"
+
+    - name: Set SSH user for RedHat/CentOS
       set_fact:
         ansible_user: ec2-user
-      when: ansible_os_family == "RedHat"
-
-  tasks:
-    - name: Install Nginx on RedHat
-      ansible.builtin.yum:
-        name: nginx
-        state: present
       when: ansible_os_family == "RedHat"
 
     - name: Install Nginx on Ubuntu
       ansible.builtin.apt:
         name: nginx
-        state: latest
+        state: present
         update_cache: yes
       when: ansible_distribution == "Ubuntu"
 
-    - name: Create index.html
+    - name: Install Nginx on Debian
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+        update_cache: yes
+      when: ansible_distribution == "Debian"
+
+    - name: Install Nginx on RedHat/CentOS
+      ansible.builtin.yum:
+        name: nginx
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    - name: Create index.html for Nginx welcome page
       ansible.builtin.copy:
-        dest: /usr/share/nginx/html/index.html
-        content: |
-          <!DOCTYPE html>
-          <html>
-          <head><title>Server Details</title></head>
-          <body>
-          <h1>Served from {{ ansible_hostname }}</h1>
-          </body>
-          </html>
-        mode: '0644'
+        dest: /var/www/html/index.html
+        content: "<h1>Hello from Ansible - Nginx is running!</h1>"
+
+    - name: Reload systemd daemon (Ubuntu/Debian)
+      ansible.builtin.command: systemctl daemon-reexec
+      when: ansible_os_family == "Debian"
 
     - name: Ensure Nginx is running and enabled
-      ansible.builtin.service:
+      ansible.builtin.systemd:
         name: nginx
         state: started
         enabled: yes
