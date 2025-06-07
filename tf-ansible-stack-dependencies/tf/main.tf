@@ -44,7 +44,7 @@ locals {
 }
 
 resource "aws_key_pair" "ssh_key" {
-  key_name   = "id_rsa"
+  key_name   = "MYLABKEY"
   public_key = file(var.public_key)
 }
 
